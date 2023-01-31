@@ -1,0 +1,174 @@
+---
+title: "GA for DMI Sem5"
+author: "Alwin"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+## Import Libraries and Packages
+
+
+```{r}
+library(tidyr)
+
+
+```
+
+
+
+
+```{r}
+df <- read.csv("DATASET_glassdoor_reviews.csv")
+head (df)
+
+```
+
+##  Data Cleaning:
+
+
+```{r}
+dc_df <- df[c('column_label','overall_rating','work_life_balance','culture_values','diversity_inclusion','career_opp','comp_benefits','senior_mgmt')]
+dc_df <- dc_df %>% drop_na() 
+
+
+
+
+```
+
+## 
+
+
+```{r}
+normalize <- function(x) {
+return ((x - min(x)) / (max(x) - min(x))) } # creating a normalize function to keep x and y values within range
+
+dc_df.n<- as.data.frame(lapply(dc_df[,2:8], normalize)) # normaliziation is applied to all variables except credibility since it is the predicted variable.
+head(dc_df.n)
+
+
+```
+
+## 
+
+
+```{r}
+set.seed(123)  # To get the same random sample
+dat.d <- sample(1:nrow(dc_df.n),size=nrow(dc_df.n)*0.7,replace = FALSE) #random selection of 70% data.
+
+train.dc_df <- dc_df[dat.d,] # 70% training data
+test.dc_df <- dc_df[-dat.d,] # remaining 30% test data
+
+#separate credibility into its own dataframe to be used for comparison.
+train.dc_df_labels <- dc_df[dat.d,1]
+test.dc_df_labels  <- dc_df[-dat.d,1]  
+
+```
+
+## 
+
+
+```{r}
+library(class)         
+
+NROW(train.dc_df_labels)   # return number of observations
+
+
+```
+
+## 
+
+
+```{r}
+knn.26 <-  knn(train=train.dc_df, test=test.dc_df, cl=train.dc_df_labels, k=26)
+knn.27 <-  knn(train=train.dc_df, test=test.dc_df, cl=train.dc_df_labels, k=27)
+
+ACC.26 <- 100 * sum(test.dc_df_labels == knn.26)/NROW(test.dc_df_labels)  # For knn = 26
+ACC.27 <- 100 * sum(test.dc_df_labels == knn.27)/NROW(test.dc_df_labels)  # For knn = 27
+ACC.26
+
+
+```
+
+## 
+
+
+```{r}
+ACC.27  
+
+
+```
+
+## Clustering
+
+
+```{r}
+library(dplyr)
+df <- df[!(is.na(df$current) | df$location==""), ]
+dc_df2 <- df[c('current','overall_rating','work_life_balance','culture_values','comp_benefits')]
+cluster_df2 <- aggregate(. ~ current, data = dc_df2, mean)
+rownames(cluster_df2) <- cluster_df2$current
+cluster_df2 <- cluster_df2 %>% select(-contains(c('current')))
+cluster_df2 <- cluster_df2[!(row.names(cluster_df2) %in% c("KEY NOT FOUND: jobLine.per_diem-former","KEY NOT FOUND: jobLine.temporary-former")),]
+cluster_df2
+```
+
+## 
+
+
+```{r}
+desc_stats <- data.frame(
+  Min = apply(cluster_df2, 2, min), # minimum
+  Med = apply(cluster_df2, 2, median), # median
+  Mean = apply(cluster_df2, 2, mean), # mean
+  SD = apply(cluster_df2, 2, sd), # Standard deviation
+  Max = apply(cluster_df2, 2, max) # Maximum
+  )
+desc_stats <- round(desc_stats, 1)
+head(desc_stats)
+
+
+
+```
+
+## 
+
+
+```{r}
+df2 <- scale(cluster_df2)
+df2
+
+```
+
+## 
+
+
+```{r}
+set.seed(123)
+km.res <- kmeans(scale(cluster_df2), 4, nstart = 25)
+km.res
+
+
+```
+## 
+
+
+```{r}
+library("factoextra")
+
+```
+
+## 
+
+
+```{r}
+fviz_cluster(km.res, data = df2,
+             palette = c("#00AFBB","#301934", "#E7B800", "#FC4E07"),
+             ggtheme = theme_minimal(),
+             main = "Partitioning Clustering Plot"
+             )
+
+
+```
+
+
